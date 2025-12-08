@@ -50,7 +50,6 @@ swagger_template = {
     ]
 }
 
-# start swagger
 swagger = Swagger(app, config=swagger_config, template=swagger_template)
 
 # In-memory databases (replace with actual database)
@@ -60,10 +59,7 @@ user_id_counter = 1
 product_id_counter = 1
 
 
-#################################################################################
 # JSON specs for each endpoint
-#################################################################################
-
 register_user_spec = {
     "tags": ["Users"],
     "summary": "Register a new user",
@@ -393,13 +389,6 @@ def register_user():
         'message': 'User registered successfully',
         'user': user
     }), 201
-
-
-
-
-##################################################################################
-#        ROUTES
-##################################################################################
 
 
 @app.route('/api/products', methods=['POST'])
