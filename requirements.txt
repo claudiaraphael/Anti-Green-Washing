@@ -1,4 +1,4 @@
-cv2
+# https://github.com/sagban/Zbar-barcode-reader-python-javascript
 flask 
 flasgger
-pyzbar
+# pyzbar
