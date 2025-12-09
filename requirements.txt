@@ -1,2 +1,4 @@
+cv2
 flask 
 flasgger
+pyzbar
