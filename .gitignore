@@ -1,4 +1,24 @@
-.env
-.venv
+# Ambiente virtual Python
+.venv/
 venv/
+env/
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Pip e dependências
+.venv/Lib/site-packages/
+venv/Lib/site-packages/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Arquivos de distribuição
+*.egg-info/
+dist/
+build/
+.venv/
+__pycache__/
+*.pyc
