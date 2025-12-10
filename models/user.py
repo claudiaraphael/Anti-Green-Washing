@@ -14,8 +14,8 @@ class User(db.Model):
     # add parameters from OFF json
 
     # Usando db.relationship
-    products = db.relationship("Product", back_populates="owner")
-    comments = db.relationship("Comment", back_populates="author")
+    product = db.relationship("Product", back_populates="owner")
+    comment = db.relationship("Comment", back_populates="author")
 
     def __repr__(self):
         return f'<User {self.username}>'
