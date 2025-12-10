@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, conint # Importamos conint para restrição de valor
+from pydantic import BaseModel, Field
+from typing import Annotated, Optional
 from datetime import datetime
-from typing import Optional
 
 # --- Schemas de Entrada (Request Body) ---
 
@@ -28,17 +28,21 @@ class CommentInputSchema(BaseModel):
     )
     
     # conint restringe o valor inteiro para um intervalo (de 0 a 5 estrelas).
-    n_estrela: conint(ge=0, le=5) = Field(
-        ...,
-        json_schema_extra={
-            "description": "Nota de 0 a 5 estrelas dada ao produto.", 
-            "example": 4
-        }
-    )
+    n_estrela: Annotated[
+        int,
+        Field(
+            ge=0,
+            le=5,
+            json_schema_extra={
+                "description": "Nota de 0 a 5 estrelas dada pelo usuário",
+                "example": 4
+            }
+        )
+    ]
     
     # Opcionais (Se o usuário estiver logado, passamos o user_id. Senão, podemos usar um nome genérico 'author'.)
     user_id: Optional[int] = Field(
-        None,
+        default=None,
         json_schema_extra={
             "description": "ID do usuário que fez o comentário (opcional, se logado).", 
             "example": 1
