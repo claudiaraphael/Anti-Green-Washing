@@ -1,8 +1,29 @@
 # https://github.com/sagban/Zbar-barcode-reader-python-javascript
-flask 
-flasgger
-sqlalchemy
+Flask==3.0.0
+flask-openapi3 
+pydantic == 2.5.2
+flask-cors==4.0.0
+Werkzeug==2.3.7
+SQLAlchemy == 2.0.15
+SQLAlchemy-Utils == 0.39.1
 flask-sqlalchemy
 sqlite == 3.51.1
-requests
-jsonify
+requests==2.31.0
+jsonify == 0.5
+
+"""
+ARQUITETURA SUGERIDA PARA UM PROJETO FLASK COM FLASK-OPENAPI3
+
+app.py: Cria a aplicação e registra os Blueprints.
+
+extensions.py: Inicializa extensões como db e OpenAPI.
+
+model/: Contém OS modelos SQLAlchemy (product.py, user.py etc.).
+
+schemas/: Contém os schemas Pydantic para validação e documentação dos dados.
+
+routes/ (ou api/): Contém os Blueprints (as rotas) onde a lógica de negócio acontece.
+
+.env: Variáveis de ambiente para configuração.
+
+"""
