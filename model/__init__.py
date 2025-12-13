@@ -4,10 +4,10 @@ from sqlalchemy import create_engine
 import os
 
 # import models
-from models.base import Base
-from models.user import User
-from models.comment import Comment
-from models.product import Product
+from model.base import Base
+from model.user import User
+from model.comment import Comment
+from model.product import Product
 
 db_path = 'database/'
 
