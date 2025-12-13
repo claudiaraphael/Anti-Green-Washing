@@ -52,6 +52,45 @@ def create_app():
         # Create tables if they do not exist
         db.create_all()
 
+
+    # ============================================
+    # CONFIGURAÇÃO DO FLASGGER (SÓ AQUI NO APP.PY)
+    # ============================================
+
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/api/docs"
+    }
+
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "API Anti-Greenwashing",
+            "description": "API para verificação de sustentabilidade de produtos",
+            "version": "1.0.0",
+            "contact": {
+                "email": "suporte@antigreenwashing.com"
+            }
+        },
+        "basePath": "/",
+        "schemes": ["http", "https"],
+        "tags": [
+            {"name": "Products", "description": "Operações com produtos"},
+            {"name": "Comments", "description": "Operações com comentários"},
+            {"name": "Users", "description": "Operações com usuários"}
+        ]
+    }
+
+    Swagger(app, config=swagger_config, template=swagger_template)
+
     # Route Registration (Blueprints)
     # IMPORTAR BLUEPRINTS AQUI DENTRO DA FUNÇÃO
     from routes.product_bp import product_bp
