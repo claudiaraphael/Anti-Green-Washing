@@ -8,9 +8,10 @@ class Product(db.Model):
 
     id = db.Column("pk_product", db.Integer, primary_key=True)
     name = db.Column(db.String(140), unique=True)
-    barcode = db.Column(db.String(50), unique=True)
-    date_inserted = db.Column(db.DateTime, default=datetime.now)  # SEM ()
-    eco_score = db.Column(db.Float, nullable=True)  # Removido unique
+    barcode = db.Column(db.String(50), unique=True)  # Mudei para String
+    date_inserted = db.Column(db.DateTime, default=datetime.now)  # Sem ()
+    # Removido unique - score pode repetir
+    eco_score = db.Column(db.Float, nullable=True)
 
     # Relacionamento com Comment
     comments = db.relationship("Comment", backref="product", lazy=True)
