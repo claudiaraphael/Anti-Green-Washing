@@ -1,7 +1,7 @@
-from flask import Flask, jsonify
+from flask import jsonify
 from flask_cors import CORS
 from extensions import db
-from flask_openapi3 import OpenAPI 
+from flask_openapi3 import OpenAPI
 
 # import data models to create data base tables
 from model.product import Product
@@ -9,67 +9,68 @@ from model.comment import Comment
 from model.user import User
 
 
-# Function Application Factory
 def create_app():
     """
     Creates and configures the Flask application, integrating OpenAPI 3.0.
-    
     """
-    
-    # 1. API Configuration (Metadata for OpenAPI)
+
+    # API Configuration (Metadata for OpenAPI)
     info = {
         'title': 'Anti Green Washing API',
         'version': '2.0',
         'description': 'Anti Green Washing API for product sustainability verification',
     }
-    
-    # CREATE FLASK APPLICATION AND INITIALIZE OpenAPI
-    # The OpenAPI object acts as the Flask application.
+
+    # create flask application and initialize OpenAPI
     app = OpenAPI(__name__, info=info, doc_prefix='/api')
-    
-    # 2. Flask and SQLAlchemy Configuration
+
+    # Flask and SQLAlchemy Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///antigreenwashing.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # 3. Extensions Initialization
+
+    # db.init_app(app) initializes the SQLAlchemy database with the Flask app
     db.init_app(app)
-    
+
     # CORS Configuration: connect front end to back end
     CORS(app, resources={
         r"/api/*": {
             "origins": ["http://127.0.0.1:5500"],
-            "methods": ["GET", "POST", "PUT", "DELETE"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
     })
 
-    # 4. Database Initialization
+    # Database Initialization
     with app.app_context():
         # Create tables if they do not exist
         db.create_all()
 
-    
-    
-    # Registrar blueprints
-    app.register_api(products_bp)
-    # app.register_api(users_bp)
-    # app.register_api(comments_bp)
+    # Route Registration (Blueprints)
+    # CORRIGIDO: importar com 's' no final
+    from routes.product_bp import products_bp
+    from routes.user_bp import users_bp
+    from routes.comment_bp import comments_bp
 
-    # Simple test route (Without Pydantic validation)
-    @app.get('/test')
+    # Registra os blueprints
+    app.register_blueprint(products_bp, url_prefix='/api')
+    app.register_blueprint(comments_bp, url_prefix='/api')
+    app.register_blueprint(users_bp, url_prefix='/api')
+
+    # Simple test route
+    @app.route('/test')
     def test_route():
         """
         This test route does not use Pydantic, but OpenAPI3 documents it.
         """
         return jsonify({"message": "API Funcionando com Flask-OpenAPI3!"})
 
-    # Swagger documentation will be available at: /api/swagger
-    # OpenAPI JSON specification will be at: /api/openapi.json
-    
     return app
 
-# Main execution block
+
 if __name__ == '__main__':
     # Create the application instance
     app = create_app()
     app.run(debug=True, port=5000)
+
+# Swagger documentation will be available at: /api/swagger
+# OpenAPI JSON specification will be at: /api/openapi.json

@@ -4,10 +4,10 @@ from model.user import User
 from schemas.user_schemas import UserInputSchema, UserResponseSchema
 
 # Criar blueprint padrão do Flask
-users_bp = Blueprint('users', __name__)
+user_bp = Blueprint('user', __name__)
 
 
-@users_bp.route('/users', methods=['POST'])
+@user_bp.route('/user', methods=['POST'])
 def create_user():
     """
     Cria um novo usuário no banco de dados.
@@ -44,26 +44,26 @@ def create_user():
         return jsonify({"error": str(e)}), 400
 
 
-@users_bp.route('/users', methods=['GET'])
-def get_all_users():
+@user_bp.route('/user', methods=['GET'])
+def get_all_user():
     """
     Lista todos os usuários.
     """
-    users = User.query.all()
+    user = User.query.all()
     return jsonify({
-        "users": [
+        "user": [
             {
                 "id": u.id,
                 "username": u.username,
                 "email": u.email,
                 "date_created": u.date_created.isoformat() if u.date_created else None
             }
-            for u in users
+            for u in user
         ]
     }), 200
 
 
-@users_bp.route('/users/<int:user_id>', methods=['GET'])
+@user_bp.route('/user/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """
     Busca um usuário pelo ID.
@@ -77,7 +77,7 @@ def get_user(user_id):
     }), 200
 
 
-@users_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@user_bp.route('/user/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
     """
     Deleta um usuário pelo ID.

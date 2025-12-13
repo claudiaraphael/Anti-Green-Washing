@@ -4,10 +4,10 @@ from model.product import Product
 from schemas.product_schemas import ProductInputSchema, ProductResponseSchema
 
 # Criar blueprint padrão do Flask
-products_bp = Blueprint('products', __name__)
+product_bp = Blueprint('product', __name__)
 
 
-@products_bp.route('/products', methods=['POST'])
+@product_bp.route('/product', methods=['POST'])
 def create_product():
     """
     Cria um novo produto no banco de dados.
@@ -46,14 +46,14 @@ def create_product():
         return jsonify({"error": str(e)}), 400
 
 
-@products_bp.route('/products', methods=['GET'])
-def get_all_products():
+@product_bp.route('/product', methods=['GET'])
+def get_all_product():
     """
     Lista todos os produtos.
     """
-    products = Product.query.all()
+    product = Product.query.all()
     return jsonify({
-        "products": [
+        "product": [
             {
                 "id": p.id,
                 "name": p.name,
@@ -61,12 +61,12 @@ def get_all_products():
                 "eco_score": p.eco_score,
                 "date_inserted": p.date_inserted.isoformat() if p.date_inserted else None
             }
-            for p in products
+            for p in product
         ]
     }), 200
 
 
-@products_bp.route('/products/<int:product_id>', methods=['GET'])
+@product_bp.route('/product/<int:product_id>', methods=['GET'])
 def get_product(product_id):
     """
     Busca um produto pelo ID.
@@ -81,7 +81,7 @@ def get_product(product_id):
     }), 200
 
 
-@products_bp.route('/products/<int:product_id>', methods=['DELETE'])
+@product_bp.route('/product/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
     """
     Deleta um produto pelo ID.

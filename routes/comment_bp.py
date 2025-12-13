@@ -4,10 +4,10 @@ from model.comment import Comment
 from schemas.comment_schemas import CommentInputSchema, CommentResponseSchema
 
 # Criar blueprint padrão do Flask
-comments_bp = Blueprint('comments', __name__)
+comment_bp = Blueprint('comment', __name__)
 
 
-@comments_bp.route('/comments', methods=['POST'])
+@comment_bp.route('/comment', methods=['POST'])
 def create_comment():
     """
     Cria um novo comentário no banco de dados.
@@ -48,14 +48,14 @@ def create_comment():
         return jsonify({"error": str(e)}), 400
 
 
-@comments_bp.route('/comments', methods=['GET'])
-def get_all_comments():
+@comment_bp.route('/comment', methods=['GET'])
+def get_all_comment():
     """
     Lista todos os comentários.
     """
-    comments = Comment.query.all()
+    comment = Comment.query.all()
     return jsonify({
-        "comments": [
+        "comment": [
             {
                 "id": c.id,
                 "author": c.author,
@@ -64,12 +64,12 @@ def get_all_comments():
                 "product_id": c.product_id,
                 "date_inserted": c.date_inserted.isoformat() if c.date_inserted else None
             }
-            for c in comments
+            for c in comment
         ]
     }), 200
 
 
-@comments_bp.route('/comments/<int:comment_id>', methods=['GET'])
+@comment_bp.route('/comment/<int:comment_id>', methods=['GET'])
 def get_comment(comment_id):
     """
     Busca um comentário pelo ID.
@@ -85,14 +85,14 @@ def get_comment(comment_id):
     }), 200
 
 
-@comments_bp.route('/comments/product/<int:product_id>', methods=['GET'])
-def get_comments_by_product(product_id):
+@comment_bp.route('/comment/product/<int:product_id>', methods=['GET'])
+def get_comment_by_product(product_id):
     """
     Lista todos os comentários de um produto específico.
     """
-    comments = Comment.query.filter_by(product_id=product_id).all()
+    comment = Comment.query.filter_by(product_id=product_id).all()
     return jsonify({
-        "comments": [
+        "comment": [
             {
                 "id": c.id,
                 "author": c.author,
@@ -100,12 +100,12 @@ def get_comments_by_product(product_id):
                 "n_estrela": c.n_estrela,
                 "date_inserted": c.date_inserted.isoformat() if c.date_inserted else None
             }
-            for c in comments
+            for c in comment
         ]
     }), 200
 
 
-@comments_bp.route('/comments/<int:comment_id>', methods=['DELETE'])
+@comment_bp.route('/comment/<int:comment_id>', methods=['DELETE'])
 def delete_comment(comment_id):
     """
     Deleta um comentário pelo ID.
