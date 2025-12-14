@@ -18,7 +18,7 @@ def create_app():
     info = {
         'title': 'Anti Green Washing API',
         'version': '2.0',
-        'description': 'Anti Green Washing API for product sustainability verification',
+        'description': 'Anti Green Washing API for product sustainability verification. The app scans products barcodes and takes data from the Open Food Facts API and returns data about sustainability certificates that brand has. The user can also add more data.',
     }
 
     # create flask application and initialize OpenAPI

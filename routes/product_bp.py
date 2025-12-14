@@ -10,7 +10,10 @@ product_bp = Blueprint('product', __name__)
 @product_bp.route('/product/<str:name>/<str:barcode>', methods=['GET'])
 def get_product(name, barcode):
     """
-    Busca um produto pelo ID.
+    
+    Searches for a product in the Open Food Facts API and gets the data
+    by name and/or barcode
+
     """
     product = Product.query.get_or_404(name, barcode)
     return jsonify({
