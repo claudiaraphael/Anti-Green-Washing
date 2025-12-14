@@ -1,7 +1,7 @@
 from flask import jsonify
 from flask_cors import CORS
 from extensions import db
-from flask_openapi3 import OpenAPI
+from flask_openapi3.openapi import OpenAPI # CORREÇÃO
 
 # import data models to create data base tables
 from model.product import Product
