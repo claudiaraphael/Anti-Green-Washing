@@ -6,6 +6,8 @@ from schemas.user_schemas import UserInputSchema, UserResponseSchema
 # Criar blueprint padrão do Flask
 user_bp = Blueprint('user', __name__)
 
+OFF_API_KEY = 'Key'
+OFF_API_URL = ''
 
 @user_bp.route('/user', methods=['POST'])
 def create_user():

@@ -7,43 +7,19 @@ from schemas.product_schemas import ProductInputSchema, ProductResponseSchema
 product_bp = Blueprint('product', __name__)
 
 
-@product_bp.route('/product', methods=['POST'])
-def create_product():
+@product_bp.route('/product/<str:name>/<str:barcode>', methods=['GET'])
+def get_product(name, barcode):
     """
-    Cria um novo produto no banco de dados.
+    Busca um produto pelo ID.
     """
-    try:
-        data = request.get_json()
-        
-        # Validar com Pydantic
-        validated_data = ProductInputSchema(**data)
-        
-        # Criar instância do produto
-        new_product = Product(
-            name=validated_data.name,
-            barcode=validated_data.barcode,
-            date_inserted=None  # usa default
-        )
-        
-        # Adicionar e commitar
-        db.session.add(new_product)
-        db.session.commit()
-        
-        # Retornar resposta
-        return jsonify({
-            "message": "Produto criado com sucesso",
-            "product": {
-                "id": new_product.id,
-                "name": new_product.name,
-                "barcode": new_product.barcode,
-                "eco_score": new_product.eco_score,
-                "date_inserted": new_product.date_inserted.isoformat() if new_product.date_inserted else None
-            }
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+    product = Product.query.get_or_404(name, barcode)
+    return jsonify({
+        "id": product.id,
+        "name": product.name,
+        "barcode": product.barcode,
+        "eco_score": product.eco_score,
+        "date_inserted": product.date_inserted.isoformat() if product.date_inserted else None
+    }), 200
 
 
 @product_bp.route('/product', methods=['GET'])
@@ -66,19 +42,43 @@ def get_all_product():
     }), 200
 
 
-@product_bp.route('/product/<int:product_id>', methods=['GET'])
-def get_product(product_id):
+@product_bp.route('/product', methods=['POST'])
+def create_product():
     """
-    Busca um produto pelo ID.
+    Cria um novo produto no banco de dados.
     """
-    product = Product.query.get_or_404(product_id)
-    return jsonify({
-        "id": product.id,
-        "name": product.name,
-        "barcode": product.barcode,
-        "eco_score": product.eco_score,
-        "date_inserted": product.date_inserted.isoformat() if product.date_inserted else None
-    }), 200
+    try:
+        data = request.get_json()
+
+        # Validar com Pydantic
+        validated_data = ProductInputSchema(**data)
+
+        # Criar instância do produto
+        new_product = Product(
+            name=validated_data.name,
+            barcode=validated_data.barcode,
+            date_inserted=None  # usa default
+        )
+
+        # Adicionar e commitar
+        db.session.add(new_product)
+        db.session.commit()
+
+        # Retornar resposta
+        return jsonify({
+            "message": "Produto criado com sucesso",
+            "product": {
+                "id": new_product.id,
+                "name": new_product.name,
+                "barcode": new_product.barcode,
+                "eco_score": new_product.eco_score,
+                "date_inserted": new_product.date_inserted.isoformat() if new_product.date_inserted else None
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
 @product_bp.route('/product/<int:product_id>', methods=['DELETE'])
@@ -87,7 +87,7 @@ def delete_product(product_id):
     Deleta um produto pelo ID.
     """
     product = Product.query.get_or_404(product_id)
-    
+
     try:
         db.session.delete(product)
         db.session.commit()
