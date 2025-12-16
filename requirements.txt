@@ -1,6 +1,6 @@
 Flask==3.0.0
 flask-cors==4.0.0
-flask-openapi3 == 4.3.0
+flasgger==0.9.7.1
 pydantic==2.5.2
 Werkzeug==3.0.0
 SQLAlchemy==2.0.15
