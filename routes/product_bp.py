@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flasgger import swag_from
 from extensions import db
 from model.product import Product
 from schemas.product_schemas import ProductInputSchema, ProductResponseSchema
@@ -9,7 +10,43 @@ product_bp = Blueprint('product', __name__)
 # CRUD
 
 # Create
+
+
 @product_bp.route('api/product', methods=['POST'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'Criar novo produto',
+    'description': 'Cria um novo produto no banco de dados',
+    'parameters': [
+        {
+            'in': 'body',
+            'name': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'required': ['name', 'barcode'],
+                'properties': {
+                    'name': {'type': 'string', 'example': 'Biscoito Integral Vitao'},
+                    'barcode': {'type': 'string', 'example': '7891234567890'},
+                    'user_id': {'type': 'integer', 'example': 1}
+                }
+            }
+        }
+    ],
+    'responses': {
+        201: {
+            'description': 'Produto criado com sucesso',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'message': {'type': 'string'},
+                    'product': {'type': 'object'}
+                }
+            }
+        },
+        400: {'description': 'Erro na validação dos dados'}
+    }
+})
 def create_product():
     """
     Creates a new product in the database
@@ -67,14 +104,35 @@ def create_product():
 # READ
 
 # History
+
+
 @product_bp.route('/product', methods=['GET'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'Listar todos os produtos',
+    'description': 'Retorna lista de todos os produtos cadastrados',
+    'responses': {
+        200: {
+            'description': 'Lista de produtos',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'products': {
+                        'type': 'array',
+                        'items': {'type': 'object'}
+                    }
+                }
+            }
+        }
+    }
+})
 def get_all_products():
     """
     Lista todos os produtos.
     """
     # 1. Buscar todos os produtos
     products = Product.query.all()
-    
+
     # 2. Serializar a lista usando ProductResponseSchema
     products_list = [
         ProductResponseSchema.model_validate(p).model_dump()
@@ -84,14 +142,34 @@ def get_all_products():
     return jsonify({"products": products_list}), 200
 
 # One product
+
+
 @product_bp.route('/product/<int:product_id>', methods=['GET'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'Buscar produto por ID',
+    'description': 'Retorna os dados de um produto específico',
+    'parameters': [
+        {
+            'in': 'path',
+            'name': 'product_id',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID do produto'
+        }
+    ],
+    'responses': {
+        200: {'description': 'Dados do produto'},
+        404: {'description': 'Produto não encontrado'}
+    }
+})
 def get_product(product_id):
     """
     Busca um produto pelo ID.
     """
     # 1. Buscar produto, retorna 404 se não encontrado
     product = Product.query.get_or_404(product_id)
-    
+
     # 2. Serializar o objeto SQLAlchemy para o formato de resposta Pydantic/JSON
     response_data = ProductResponseSchema.model_validate(product).model_dump()
 
@@ -99,12 +177,42 @@ def get_product(product_id):
 
 # UPDATE
 
-# O ProductInputSchema pode ser re-utilizado para o update, 
+# O ProductInputSchema pode ser re-utilizado para o update,
 # mas campos opcionais devem ser tratados com cautela se usar PUT (substituição completa).
 # Para PATCH (atualização parcial), usaremos um esquema de entrada para update.
 # Como seus schemas de entrada não usam Optional/None, vou usar a abordagem simples de PATCH.
 
+
 @product_bp.route('/product/<int:product_id>', methods=['PATCH'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'Atualizar produto',
+    'description': 'Atualiza parcialmente os dados de um produto',
+    'parameters': [
+        {
+            'in': 'path',
+            'name': 'product_id',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID do produto'
+        },
+        {
+            'in': 'body',
+            'name': 'body',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'barcode': {'type': 'string'}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {'description': 'Produto atualizado com sucesso'},
+        404: {'description': 'Produto não encontrado'}
+    }
+})
 def update_product(product_id):
     """
     Atualiza parcialmente um produto pelo ID (PATCH).
@@ -112,24 +220,24 @@ def update_product(product_id):
     """
     # 1. Buscar produto existente
     product = Product.query.get_or_404(product_id)
-    
+
     try:
         # 2. Obter dados da requisição
         data = request.get_json()
 
         # 3. Validar apenas os campos presentes na requisição (reutilizando o schema)
         # Passar data para ProductInputSchema com o método model_validate_json para validar.
-        # Aqui, a validação é um pouco mais complexa porque queremos apenas 
+        # Aqui, a validação é um pouco mais complexa porque queremos apenas
         # validar os campos *que vieram*. Uma abordagem Pydantic ideal é criar
         # um 'UpdateSchema' onde todos os campos são Optional.
-        
+
         # **Simplificação (aplica as mudanças diretamente se a chave existir):**
         if 'name' in data:
             product.name = data['name']
         if 'barcode' in data:
             product.barcode = data['barcode']
 
-        # Note: Eco_score não está no InputSchema, mas pode ser atualizado se você 
+        # Note: Eco_score não está no InputSchema, mas pode ser atualizado se você
         # tiver um endpoint que o calcule ou o receba.
         # if 'certificates' in data:
         #    product.certificates = data['certificates']
@@ -138,7 +246,8 @@ def update_product(product_id):
         db.session.commit()
 
         # 5. Retornar resposta
-        response_data = ProductResponseSchema.model_validate(product).model_dump()
+        response_data = ProductResponseSchema.model_validate(
+            product).model_dump()
         return jsonify({
             "message": "Produto atualizado com sucesso",
             "product": response_data
@@ -150,7 +259,26 @@ def update_product(product_id):
 
 # DELETE
 
+
 @product_bp.route('/product/<int:product_id>', methods=['DELETE'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'Deletar produto',
+    'description': 'Remove um produto do banco de dados',
+    'parameters': [
+        {
+            'in': 'path',
+            'name': 'product_id',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID do produto a ser deletado'
+        }
+    ],
+    'responses': {
+        200: {'description': 'Produto deletado com sucesso'},
+        404: {'description': 'Produto não encontrado'}
+    }
+})
 def delete_product(product_id):
     """
     Deleta um produto pelo ID.

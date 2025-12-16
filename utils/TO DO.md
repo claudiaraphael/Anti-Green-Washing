@@ -24,11 +24,11 @@
   - Fazer requisição `GET` para `/api/scan/<barcode_or_name>`
   - Processar resposta JSON e popular seção `resultadoProduto`
 
-- [ ] **Remover chamada direta à API OFF do JavaScript**
+- [x] **Remover chamada direta à API OFF do JavaScript**
   - A integração com Open Food Facts deve ser feita no backend (Flask)
   - Frontend apenas envia dados para a API Flask e recebe respostas
 
-- [ ] **Atualizar funções CRUD no `script.js`**
+- [x] **Atualizar funções fetch CRUD no `script.js`**
   - Ajustar `getList()`, `postItem()`, `deleteItem()` para usar campos corretos
   - Garantir compatibilidade com schemas Pydantic do backend
 

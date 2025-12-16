@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flasgger import Swagger
 from extensions import db
-from flask_openapi3.openapi import OpenAPI  # CORREÇÃO
 
 # import data models to create data base tables
 from model.product import Product
@@ -22,11 +22,58 @@ def create_app():
     }
 
     # create flask application and initialize OpenAPI
-    app = OpenAPI(__name__, info=info)
+    app = Flask(__name__)
 
     # Flask and SQLAlchemy Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///antigreenwashing.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Swagger Config
+
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/"
+    }
+
+    swagger_template = {
+        "info": {
+            "title": "Anti Green Washing API",
+            "description": "API para verificação de sustentabilidade de produtos. Escaneia códigos de barras e consulta dados do Open Food Facts para retornar certificações de sustentabilidade.",
+            "version": "2.0",
+            "contact": {
+                "name": "API Support",
+                "email": "seu-email@exemplo.com"
+            }
+        },
+        "schemes": ["http"],
+        "tags": [
+            {
+                "name": "Product",
+                "description": "Operações relacionadas a produtos"
+            },
+            {
+                "name": "User",
+                "description": "Operações relacionadas a usuários"
+            },
+            {
+                "name": "Comment",
+                "description": "Operações relacionadas a comentários"
+            }
+        ]
+    }
+
+    # Inicializar Swagger
+    Swagger(app, config=swagger_config, template=swagger_template)
 
     # db.init_app(app) initializes the SQLAlchemy database with the Flask app
     db.init_app(app)
@@ -56,7 +103,7 @@ def create_app():
     # Simple test route
     @app.route('/')
     def home():
-        return 'Ola Mundo Invertido'
+        return 'Anti Green Washing API v2.0'
 
     @app.route('/test')
     def test_route():
