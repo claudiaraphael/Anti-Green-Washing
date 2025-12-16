@@ -82,12 +82,12 @@
   - Explicação da arquitetura (Frontend + Backend + API OFF)
 
 - [ ] **Preparar demonstração prática**
-  - Escanear produto por código de barras
-  - Mostrar cálculo do eco_score
+  - Escanear produto por código de barras -> como mandar o codigo de barras do javascript pro flask?
+  - Mostrar cálculo do eco_score/certificates
   - Exibir histórico de produtos consultados
 
 - [ ] **Gravar e editar vídeo**
-  - Duração recomendada: 3-5 minutos
+  - Duração recomendada: 3-4 minutos
   - Incluir capturas de tela da aplicação funcionando
   - Adicionar narração explicativa
 
