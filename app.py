@@ -1,7 +1,7 @@
-from flask import jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
 from extensions import db
-from flask_openapi3.openapi import OpenAPI # CORREÇÃO
+from flask_openapi3.openapi import OpenAPI  # CORREÇÃO
 
 # import data models to create data base tables
 from model.product import Product
@@ -54,6 +54,10 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api')
 
     # Simple test route
+    @app.route('/')
+    def home():
+        return 'Ola Mundo Invertido'
+
     @app.route('/test')
     def test_route():
         return jsonify({"message": "API Funcionando com Flask-OpenAPI3!"})

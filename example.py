@@ -47,14 +47,14 @@ def create_app():
 
     # Route Registration (Blueprints)
     # CORRIGIDO: importar com 's' no final
-    from routes.product_bp import products_bp
-    from routes.user_bp import users_bp
-    from routes.comment_bp import comments_bp
+    from routes.product_bp import product_bp
+    from routes.user_bp import user_bp
+    from routes.comment_bp import comment_bp
 
     # Registra os blueprints
-    app.register_blueprint(products_bp, url_prefix='/api')
-    app.register_blueprint(comments_bp, url_prefix='/api')
-    app.register_blueprint(users_bp, url_prefix='/api')
+    app.register_blueprint(product_bp, url_prefix='/api')
+    app.register_blueprint(comment_bp, url_prefix='/api')
+    app.register_blueprint(user_bp, url_prefix='/api')
 
     # Simple test route
     @app.route('/test')

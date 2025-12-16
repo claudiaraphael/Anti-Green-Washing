@@ -6,6 +6,8 @@ from schemas.comment_schemas import CommentInputSchema, CommentResponseSchema
 # Criar blueprint padrão do Flask
 comment_bp = Blueprint('comment', __name__)
 
+# create
+
 
 @comment_bp.route('/comment', methods=['POST'])
 def create_comment():
@@ -47,6 +49,8 @@ def create_comment():
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
+# read history
+
 
 @comment_bp.route('/comment', methods=['GET'])
 def get_all_comment():
@@ -68,6 +72,8 @@ def get_all_comment():
         ]
     }), 200
 
+# read
+
 
 @comment_bp.route('/comment/<int:comment_id>', methods=['GET'])
 def get_comment(comment_id):
@@ -83,6 +89,8 @@ def get_comment(comment_id):
         "product_id": comment.product_id,
         "date_inserted": comment.date_inserted.isoformat() if comment.date_inserted else None
     }), 200
+
+# read all comments from a product
 
 
 @comment_bp.route('/comment/product/<int:product_id>', methods=['GET'])
@@ -103,6 +111,8 @@ def get_comment_by_product(product_id):
             for c in comment
         ]
     }), 200
+
+# delete
 
 
 @comment_bp.route('/comment/<int:comment_id>', methods=['DELETE'])

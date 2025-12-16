@@ -6,3 +6,30 @@
 6. Exibe a lista de produtos
 7. Cria novo produto
 8. Deleta produto
+
+## Resumo Visual
+```
+┌─────────────┐
+│   USUÁRIO   │
+│ (digita e   │
+│   clica)    │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ script.js   │ 
+│ (escuta e   │
+│   comunica) │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ Flask (seu  │                   
+│  backend)   ----> |Banco de dados|
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│ Open Food   │
+│   Facts     │
+└─────────────┘
