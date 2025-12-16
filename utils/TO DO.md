@@ -4,12 +4,12 @@
 
 ### 1. Documentação e Setup Inicial
 
-- [ ] **Corrigir erro do Swagger no `app.py`**
+- [x] **Corrigir erro do Swagger no `app.py`**
   - Alterar: `from flask_openapi3 import OpenAPI`
   - Para: `from flask_openapi3.openapi import OpenAPI`
   - Verificar acesso em `http://127.0.0.1:5000/openapi/swagger` ou `/docs`
 
-- [ ] **Validar estrutura de pastas do projeto**
+- [x] **Validar estrutura de pastas do projeto**
   - Confirmar organização: `model/`, `routes/`, `schemas/`, `utils/`
   - Verificar `requirements.txt` com todas as dependências
 

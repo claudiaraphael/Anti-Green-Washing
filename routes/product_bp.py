@@ -9,7 +9,7 @@ product_bp = Blueprint('product', __name__)
 # CRUD
 
 # Create
-@product_bp.route('/product', methods=['POST'])
+@product_bp.route('api/product', methods=['POST'])
 def create_product():
     """
     Creates a new product in the database
