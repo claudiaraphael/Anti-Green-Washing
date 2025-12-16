@@ -95,10 +95,13 @@ def create_app():
     from routes.product_bp import product_bp
     from routes.user_bp import user_bp
     from routes.comment_bp import comment_bp
+    from routes.openfoodfacts_bp import openfoodfacts_bp
+
 
     app.register_blueprint(product_bp, url_prefix='/api')
     app.register_blueprint(comment_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
+    app.register_blueprint(openfoodfacts_bp, url_prefix='/api')
 
     # Simple test route
     @app.route('/')
