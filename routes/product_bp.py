@@ -3,19 +3,19 @@ from flasgger import swag_from
 from extensions import db
 from model.product import Product
 from schemas.product_schemas import ProductInputSchema, ProductResponseSchema
+import requests
 
-# Criar blueprint padrão do Flask
+# Blueprint definition
 product_bp = Blueprint('product', __name__)
 
-# CRUD
+# --- CRUD Operations ---
 
-# Create
-
+# CREATE (Scan & Save)
 @product_bp.route('api/product', methods=['POST'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Criar novo produto',
-    'description': 'Cria um novo produto no banco de dados',
+    'summary': 'Scan and create a new product',
+    'description': 'Receives a barcode, consults Open Food Facts, and saves the product to the local history.',
     'parameters': [
         {
             'in': 'body',
@@ -23,9 +23,8 @@ product_bp = Blueprint('product', __name__)
             'required': True,
             'schema': {
                 'type': 'object',
-                'required': ['name', 'barcode'],
+                'required': ['barcode'],
                 'properties': {
-                    'name': {'type': 'string', 'example': 'Biscoito Integral Vitao'},
                     'barcode': {'type': 'string', 'example': '7891234567890'},
                     'user_id': {'type': 'integer', 'example': 1}
                 }
@@ -34,7 +33,7 @@ product_bp = Blueprint('product', __name__)
     ],
     'responses': {
         201: {
-            'description': 'Produto criado com sucesso',
+            'description': 'Product scanned and saved successfully',
             'schema': {
                 'type': 'object',
                 'properties': {
@@ -43,67 +42,95 @@ product_bp = Blueprint('product', __name__)
                 }
             }
         },
-        400: {'description': 'Erro na validação dos dados'}
+        400: {'description': 'Validation error or invalid barcode'},
+        404: {'description': 'Product not found in the Global Database'},
+        502: {'description': 'Error communicating with the external API'}
     }
 })
 def create_product():
     """
-    Creates a new product in the database
-
-    
+    Workflow: Receive barcode -> Query Open Food Facts -> Extract Tags & Image -> Save to SQLite.
     """
     try:
-        # 1. obtain data (pydantic)
+        # 1. Obtain and validate barcode via Pydantic
         data = request.get_json()
-
-        # validate data according to the schema (pydantic)
         validated_data = ProductInputSchema(**data)
-        # if there is something wrong, it raises an exception
+        barcode = validated_data.barcode
 
-        # 2. Create instance of the SQLAlchemy model
-        # **kwargs facilitates trasnfering all the key-value pairs
-        # **kwargs = dicionario de argumentos nomeados
-        new_product = Product(**validated_data.model_dump(exclude_unset=True))
+        # 2. Call Open Food Facts API
+        off_url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+        try:
+            response = requests.get(off_url, timeout=10)
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            return jsonify({"error": "Failed to connect to Open Food Facts"}), 502
 
-        # 3. Persist in the data base
-        # adds new product to staging area (sqlalchemy) - not yet saved
+        product_data = response.json()
+
+        # Status 0 means the product was not found
+        if product_data.get("status") == 0:
+            return jsonify({"error": "Product not found in the global database"}), 404
+
+        # 3. Extract data from the external API
+        off_info = product_data.get("product", {})
+
+        # Mapping to Product model
+        name = off_info.get("product_name", "Unknown Product")
+        image_url = off_info.get("image_front_url")
+        nova_group = off_info.get("nova_groups")
+
+        # Tag processing (converting lists to comma-separated strings for SQLite Text field)
+        ingredients_tags = ",".join(off_info.get("ingredients_analysis_tags", []))
+        labels_tags = ",".join(off_info.get("labels_tags", []))
+        allergens_tags = ",".join(off_info.get("allergens_tags", []))
+        additives_tags = ",".join(off_info.get("additives_tags", []))
+
+        # 4. Create SQLAlchemy Model Instance
+        # Score starts at 0.0 until the score function is implemented
+        new_product = Product(
+            name=name,
+            barcode=barcode,
+            image_url=image_url,
+            nova_group=nova_group,
+            ingredients_analysis_tags=ingredients_tags,
+            labels_tags=labels_tags,
+            allergens_tags=allergens_tags,
+            additives_tags=additives_tags,
+            score=0.0
+        )
+
+        # 5. Persist in Database
         db.session.add(new_product)
+        db.session.commit()
 
-        db.session.commit()  # executes SQL: INSERT in the data base, persisting the
-
-        # 4. Return Response - using ProductResponseSchema
-        response_data = ProductResponseSchema.model_validate(
-            new_product).model_dump()
+        # 6. Serialize response via Pydantic
+        response_data = ProductResponseSchema.model_validate(new_product).model_dump()
 
         return jsonify({
-            "message": "Produto criado com sucesso",
+            "message": "Product scanned and saved successfully",
             "product": response_data
         }), 201
 
     except Exception as e:
         db.session.rollback()
-        # If Pydantic validation fails (e.g., missing field), the error is caught here.
-        return jsonify({"error": str(e)}), 400
-
-# READ
-
-# History
+        return jsonify({"error": f"Internal error: {str(e)}"}), 400
 
 
+# READ (History)
 @product_bp.route('/product', methods=['GET'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Listar todos os produtos',
-    'description': 'Retorna lista de todos os produtos cadastrados',
+    'summary': 'List product history',
+    'description': 'Returns a list of all scanned products, including scores and images.',
     'responses': {
         200: {
-            'description': 'Lista de produtos',
+            'description': 'List of products retrieved successfully',
             'schema': {
                 'type': 'object',
                 'properties': {
                     'products': {
                         'type': 'array',
-                        'items': {'type': 'object'}
+                        'items': {'$ref': '#/definitions/ProductResponse'}
                     }
                 }
             }
@@ -112,12 +139,12 @@ def create_product():
 })
 def get_all_products():
     """
-    Lista todos os produtos.
+    Lists all products saved in the local database.
     """
-    # 1. Buscar todos os produtos
-    products = Product.query.all()
+    # Order by insertion date (newest first)
+    products = Product.query.order_by(Product.date_inserted.desc()).all()
 
-    # 2. Serializar a lista usando ProductResponseSchema
+    # Pydantic processes the list including tags, image_url, and score
     products_list = [
         ProductResponseSchema.model_validate(p).model_dump()
         for p in products
@@ -125,60 +152,37 @@ def get_all_products():
 
     return jsonify({"products": products_list}), 200
 
-# One product
 
-
+# READ (Single Product)
 @product_bp.route('/product/<int:product_id>', methods=['GET'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Buscar produto por ID',
-    'description': 'Retorna os dados de um produto específico',
-    'parameters': [
-        {
-            'in': 'path',
-            'name': 'product_id',
-            'type': 'integer',
-            'required': True,
-            'description': 'ID do produto'
-        }
-    ],
+    'summary': 'View product details',
+    'description': 'Returns all details of a specific product from the local database.',
     'responses': {
-        200: {'description': 'Dados do produto'},
-        404: {'description': 'Produto não encontrado'}
+        200: {'description': 'Product data found'},
+        404: {'description': 'Product not found in history'}
     }
 })
 def get_product(product_id):
-    """
-    Busca um produto pelo ID.
-    """
-    # 1. Buscar produto, retorna 404 se não encontrado
     product = Product.query.get_or_404(product_id)
-
-    # 2. Serializar o objeto SQLAlchemy para o formato de resposta Pydantic/JSON
     response_data = ProductResponseSchema.model_validate(product).model_dump()
-
     return jsonify(response_data), 200
 
+
 # UPDATE
-
-# O ProductInputSchema pode ser re-utilizado para o update,
-# mas campos opcionais devem ser tratados com cautela se usar PUT (substituição completa).
-# Para PATCH (atualização parcial), usaremos um esquema de entrada para update.
-# Como seus schemas de entrada não usam Optional/None, vou usar a abordagem simples de PATCH.
-
-
 @product_bp.route('/product/<int:product_id>', methods=['PATCH'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Atualizar produto',
-    'description': 'Atualiza parcialmente os dados de um produto',
+    'summary': 'Update local product',
+    'description': 'Updates the name or barcode of a product in the history.',
     'parameters': [
         {
             'in': 'path',
             'name': 'product_id',
             'type': 'integer',
             'required': True,
-            'description': 'ID do produto'
+            'description': 'Product ID'
         },
         {
             'in': 'body',
@@ -186,54 +190,34 @@ def get_product(product_id):
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'name': {'type': 'string'},
-                    'barcode': {'type': 'string'}
+                    'name': {'type': 'string', 'example': 'New Name'},
+                    'barcode': {'type': 'string', 'example': '123456789'}
                 }
             }
         }
     ],
     'responses': {
-        200: {'description': 'Produto atualizado com sucesso'},
-        404: {'description': 'Produto não encontrado'}
+        200: {'description': 'Product updated successfully'},
+        404: {'description': 'Product not found'}
     }
 })
 def update_product(product_id):
-    """
-    Atualiza parcialmente um produto pelo ID (PATCH).
-    Permite alterar nome, barcode ou user_id.
-    """
-    # 1. Buscar produto existente
     product = Product.query.get_or_404(product_id)
 
     try:
-        # 2. Obter dados da requisição
         data = request.get_json()
 
-        # 3. Validar apenas os campos presentes na requisição (reutilizando o schema)
-        # Passar data para ProductInputSchema com o método model_validate_json para validar.
-        # Aqui, a validação é um pouco mais complexa porque queremos apenas
-        # validar os campos *que vieram*. Uma abordagem Pydantic ideal é criar
-        # um 'UpdateSchema' onde todos os campos são Optional.
-
-        # **Simplificação (aplica as mudanças diretamente se a chave existir):**
         if 'name' in data:
             product.name = data['name']
+
         if 'barcode' in data:
             product.barcode = data['barcode']
 
-        # Note: Eco_score não está no InputSchema, mas pode ser atualizado se você
-        # tiver um endpoint que o calcule ou o receba.
-        # if 'certificates' in data:
-        #    product.certificates = data['certificates']
-
-        # 4. Commit da transação
         db.session.commit()
 
-        # 5. Retornar resposta
-        response_data = ProductResponseSchema.model_validate(
-            product).model_dump()
+        response_data = ProductResponseSchema.model_validate(product).model_dump()
         return jsonify({
-            "message": "Produto atualizado com sucesso",
+            "message": "Product updated successfully",
             "product": response_data
         }), 200
 
@@ -241,61 +225,25 @@ def update_product(product_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
+
 # DELETE
-
-
 @product_bp.route('/product/<int:product_id>', methods=['DELETE'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Deletar produto',
-    'description': 'Remove um produto do banco de dados',
-    'parameters': [
-        {
-            'in': 'path',
-            'name': 'product_id',
-            'type': 'integer',
-            'required': True,
-            'description': 'ID do produto a ser deletado'
-        }
-    ],
+    'summary': 'Remove from history',
+    'description': 'Permanently deletes a product from the local database.',
     'responses': {
-        200: {'description': 'Produto deletado com sucesso'},
-        404: {'description': 'Produto não encontrado'}
+        200: {'description': 'Removed successfully'},
+        404: {'description': 'Not found'}
     }
 })
 def delete_product(product_id):
-    """
-    Deleta um produto pelo ID.
-    """
-    # 1. Buscar produto existente
     product = Product.query.get_or_404(product_id)
 
     try:
-        # 2. Deletar e commitar
         db.session.delete(product)
         db.session.commit()
-        return jsonify({"message": f"Produto ID {product_id} deletado com sucesso"}), 200
+        return jsonify({"message": f"Product {product_id} removed from history"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-"""
-notes
-
-Uses Kwargs to transfer data.
-
-    It's commonly used in APIs with Flask when you want flexibility in parameters without having to explicitly define them.
-
-    Creates an instance of the SQLAlchemy Product model. The model_dump(exclude_unset=True) converts the validated Pydantic object back to a dictionary, excluding fields that weren't set in the request. The ** unpacks the dictionary as named arguments.
-
-    Converts the SQLAlchemy `new_product` object to the Pydantic `ProductResponseSchema` (validating the response structure) and then transforms it into a dictionary with `model_dump()`.
-
-    Returns JSON with success message and product data, with HTTP status 201 (Created).
-
-    If any error occurs (Pydantic validation, database error, etc.), rolls back any pending changes in the SQLAlchemy session.
-
-    Returns formatted error as JSON with status 400 (Bad Request).
-
-    Flow summary: receives JSON → validates with Pydantic → creates SQLAlchemy model → saves to database → formats response with Pydantic → returns JSON.
-
-
-"""
