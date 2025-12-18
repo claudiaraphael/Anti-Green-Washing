@@ -7,70 +7,56 @@ from typing import Optional
 class ProductInputSchema(BaseModel):
     """
     Schema para os dados de entrada ao criar um novo produto (POST).
-    Necessita de nome e código de barras para ser cadastrado.
+    O nome é opcional pois o sistema pode buscá-lo via barcode.
     """
     
-    # Campo 'name' é obrigatório.
-    name: str = Field(
-        ...,
+    # Campo 'name' opcional: se não vier no JSON, o backend busca na Open Food Facts
+    name: Optional[str] = Field(
+        None,
         json_schema_extra={
-            "description": "Nome do produto.", 
-            "example": "Biscoito Integral Vitao"
+            "description": "Nome do produto (opcional se houver barcode).", 
+            "example": "Sabão Eco Green"
         }
     )
     
-    # Campo 'barcode' é obrigatório.
-    # Usamos 'str' pois códigos de barras longos (EAN-13) são melhor tratados como strings.
+    # Campo 'barcode' continua obrigatório para o scanner funcionar
     barcode: str = Field(
         ...,
         json_schema_extra={
-            "description": "Código de barras do produto (ex: EAN-13).", 
+            "description": "Código de barras do produto (EAN-13).", 
             "example": "7891234567890"
         }
     )
     
-    # Adicionando um campo opcional para o ID do usuário que inseriu.
-    # Será útil para a lógica de 'deletar produtos' na base de dados local.
-    user_id: Optional[int] = Field(
-        None,
-        json_schema_extra={
-            "description": "ID do usuário que cadastrou o produto (opcional).", 
-            "example": 1
-        }
-    )
+    user_id: Optional[int] = Field(None, json_schema_extra={"example": 1})
 
 
 # --- Schemas de Saída (Response Body) ---
 
 class ProductResponseSchema(ProductInputSchema):
     """
-    Schema para o retorno (Response Body) de um produto.
-    Inclui campos gerados pelo sistema.
+    Schema para o retorno completo do Truth Label.
+    Inclui os dados processados e as tags de análise.
     """
     
-    id: int = Field(
-        ...,
-        json_schema_extra={
-            "description": "ID único do produto no banco de dados.", 
-            "example": 101
-        }
+    id: int = Field(..., json_schema_extra={"description": "ID interno no banco."})
+    
+    # URL da imagem para o card do frontend
+    image_url: Optional[str] = Field(None, json_schema_extra={"description": "Link da foto do produto."})
+    
+    # Truth Label Score (0 a 100)
+    score: Optional[float] = Field(
+        None, 
+        json_schema_extra={"description": "Score de 0 a 100.", "example": 95.6}
     )
     
-    # O Pydantic V2 usará o objeto float nativo. Optional é importante aqui, 
-    # pois o eco_score pode ser calculado APÓS a inserção inicial.
-    eco_score: Optional[float] = Field(
-        None,
-        json_schema_extra={
-            "description": "Score de sustentabilidade calculado (0 a 5).", 
-            "example": 4.5
-        }
-    )
+    # Nível de processamento (1 a 4)
+    nova_group: Optional[int] = Field(None, json_schema_extra={"example": 1})
     
-    # Usamos o tipo datetime. O Pydantic V2 o serializa para uma string ISO 8601 no JSON.
-    date_inserted: datetime = Field(
-        ...,
-        json_schema_extra={
-            "description": "Data de cadastro do produto (ISO 8601).", 
-            "example": "2025-12-10T16:15:00"
-        }
-    )
+    # Tags de análise (armazenadas como strings conforme o Model)
+    ingredients_analysis_tags: Optional[str] = None
+    labels_tags: Optional[str] = None
+    allergens_tags: Optional[str] = None
+    additives_tags: Optional[str] = None
+    
+    date_inserted: datetime = Field(..., json_schema_extra={"description": "Data do scan."})
