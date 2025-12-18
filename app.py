@@ -16,16 +16,16 @@ def create_app():
 
     # API Configuration (Metadata for OpenAPI)
     info = {
-        'title': 'Anti Green Washing API',
-        'version': '2.0',
-        'description': 'Anti Green Washing API for product sustainability verification. The app scans products barcodes and takes data from the Open Food Facts API and returns data about sustainability certificates that brand has. The user can also add more data.',
+        'title': 'Truth Lable',
+        'version': '1.0',
+        'description': 'Truth lable provides verifiable data on food products based on their ingredients and presence of allergens. The app scans products barcodes and takes data from the Open Food Facts API and returns abundant data about their composition.',
     }
 
     # create flask application and initialize OpenAPI
     app = Flask(__name__)
 
     # Flask and SQLAlchemy Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///antigreenwashing.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///truthlable.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Swagger Config
