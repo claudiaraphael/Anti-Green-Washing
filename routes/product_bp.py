@@ -5,23 +5,108 @@ from model.product import Product
 from schemas.product_schemas import ProductInputSchema, ProductResponseSchema
 import requests
 
-# score ccalculator
+# score calculator
 from scripts.score_calculator import calculate_score
 
 
 # Blueprint definition
 product_bp = Blueprint('product', __name__)
 
-# --- CRUD Operations ---
 
-# CREATE (Scan & Save)
+# ========== FUNÇÕES AUXILIARES (HELPERS) ==========
+
+def buscar_produto_no_db(barcode):
+    """
+    Busca um produto no banco de dados local pelo código de barras.
+
+    Args:
+        barcode (str): Código de barras do produto
+
+    Returns:
+        Product | None: Objeto Product se encontrado, None caso contrário
+    """
+    return Product.query.filter_by(barcode=barcode).first()
 
 
-@product_bp.route('/product', methods=['POST'])
+def buscar_produto_na_off(barcode):
+    """
+    Busca um produto na API do Open Food Facts.
+
+    Args:
+        barcode (str): Código de barras do produto
+
+    Returns:
+        dict | None: Dados do produto se encontrado, None caso contrário
+    """
+    off_url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+
+    try:
+        response = requests.get(off_url, timeout=10)
+        product_data = response.json()
+
+        if product_data.get("status") == 0:
+            return None
+
+        return product_data.get("product")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao consultar OFF: {e}")
+        return None
+
+
+def criar_e_salvar_produto(barcode, off_data):
+    """
+    Cria um novo produto a partir dos dados da OFF, calcula o score e salva no DB.
+
+    Args:
+        barcode (str): Código de barras do produto
+        off_data (dict): Dados retornados pela API do Open Food Facts
+
+    Returns:
+        Product: Objeto Product salvo no banco de dados
+    """
+    # Extrai dados para cálculo do score
+    nova = off_data.get("nova_groups")
+    ing_tags = off_data.get("ingredients_analysis_tags", [])
+    lab_tags = off_data.get("labels_tags", [])
+    add_tags = off_data.get("additives_tags", [])
+
+    # Calcula o score
+    final_score = calculate_score(
+        nova_group=nova,
+        ingredients_tags=ing_tags,
+        labels_tags=lab_tags,
+        additives_tags=",".join(add_tags)
+    )
+
+    # Cria o objeto Product
+    novo_produto = Product(
+        name=off_data.get("product_name", "Unknown Product"),
+        barcode=barcode,
+        image_url=off_data.get("image_front_url"),
+        nova_group=nova,
+        ingredients_analysis_tags=",".join(ing_tags),
+        labels_tags=",".join(lab_tags),
+        allergens_tags=",".join(off_data.get("allergens_tags", [])),
+        additives_tags=",".join(add_tags),
+        score=final_score
+    )
+
+    # Salva no banco de dados
+    db.session.add(novo_produto)
+    db.session.commit()
+
+    return novo_produto
+
+
+# ========== ROTAS ==========
+
+# SCAN: Escaneia código de barras e retorna/cria produto
+@product_bp.route('/product/scan', methods=['POST'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Scan and create a new product',
-    'description': 'Receives a barcode, consults Open Food Facts, calculates score, and saves.',
+    'summary': 'Scan barcode and get product',
+    'description': 'Receives a barcode, checks local DB, fetches from OFF if needed, calculates score and saves.',
     'parameters': [
         {
             'in': 'body',
@@ -37,86 +122,101 @@ product_bp = Blueprint('product', __name__)
         }
     ],
     'responses': {
-        201: {'description': 'Product analyzed and saved successfully'},
-        404: {'description': 'Product not found in Open Food Facts'}
+        200: {'description': 'Product found in local database'},
+        201: {'description': 'Product fetched from OFF and saved'},
+        404: {'description': 'Product not found in OFF'},
+        400: {'description': 'Invalid request'}
     }
 })
-def create_product():
+def scan_product():
+    """
+    Rota principal de scan:
+    1. Verifica se produto existe no DB local
+    2. Se não existe, busca na API do Open Food Facts
+    3. Calcula score e salva no DB
+    4. Retorna os dados do produto
+    """
     try:
         data = request.get_json()
         validated_data = ProductInputSchema(**data)
         barcode = validated_data.barcode
 
-        # 1. Fetch from external API
-        off_url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
-        response = requests.get(off_url, timeout=10)
-        product_data = response.json()
+        # Passo 1: Verifica no banco de dados local
+        produto_existente = buscar_produto_no_db(barcode)
 
-        if product_data.get("status") == 0:
-            return jsonify({"error": "Product not found"}), 404
+        if produto_existente:
+            return jsonify({
+                "message": "Product found in history",
+                "product": ProductResponseSchema.model_validate(produto_existente).model_dump()
+            }), 200
 
-        off_info = product_data.get("product", {})
+        # Passo 2: Busca na API externa
+        off_data = buscar_produto_na_off(barcode)
 
-        # 2. Extract raw data for scoring
-        nova = off_info.get("nova_groups")
-        ing_tags = off_info.get("ingredients_analysis_tags", [])
-        lab_tags = off_info.get("labels_tags", [])
-        add_tags = off_info.get("additives_tags", [])
+        if not off_data:
+            return jsonify({"error": "Product not found in Open Food Facts"}), 404
 
-        # 3. CALCULATE THE SCORE using your script
-        final_score = calculate_score(
-            nova_group=nova,
-            ingredients_tags=ing_tags,
-            labels_tags=lab_tags,
-            additives_tags=",".join(add_tags)
-        )
+        # Passo 3: Cria e salva o produto
+        novo_produto = criar_e_salvar_produto(barcode, off_data)
 
-        # 4. Save to Database
-        new_product = Product(
-            name=off_info.get("product_name", "Unknown Product"),
-            barcode=barcode,
-            image_url=off_info.get("image_front_url"),
-            nova_group=nova,
-            ingredients_analysis_tags=",".join(ing_tags),
-            labels_tags=",".join(lab_tags),
-            allergens_tags=",".join(off_info.get("allergens_tags", [])),
-            additives_tags=",".join(add_tags),
-            score=final_score  # Saved in the DB!
-        )
-
-        db.session.add(new_product)
-        db.session.commit()
-
-        # 5. Return the result
+        # Passo 4: Retorna o resultado
         return jsonify({
             "message": "Product scanned and saved successfully",
-            "product": ProductResponseSchema.model_validate(new_product).model_dump()
+            "product": ProductResponseSchema.model_validate(novo_produto).model_dump()
         }), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Internal error: {str(e)}"}), 400
 
-# READ (Single Product)
 
-
-@product_bp.route('/product/<int:product_id>', methods=['GET'])
+# GET: Busca produto no histórico (por ID, nome ou barcode)
+@product_bp.route('/product', methods=['GET'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'View product details',
-    'description': 'Returns all details of a specific product from the local database.',
+    'summary': 'Search product in history',
+    'description': 'Search for a product in local database using ID, name, or barcode.',
+    'parameters': [
+        {'name': 'id', 'in': 'query', 'type': 'integer', 'description': 'Product ID'},
+        {'name': 'name', 'in': 'query', 'type': 'string',
+            'description': 'Product Name'},
+        {'name': 'barcode', 'in': 'query', 'type': 'string',
+            'description': 'Product Barcode'}
+    ],
     'responses': {
-        200: {'description': 'Product data found'},
+        200: {'description': 'Product found'},
+        400: {'description': 'Provide at least one search parameter'},
         404: {'description': 'Product not found in history'}
     }
 })
-def get_product(product_id):
-    product = Product.query.get_or_404(product_id)
+def get_product():
+    """
+    Busca um produto no histórico local.
+    Aceita ID, nome ou barcode como parâmetro de busca.
+    """
+    product_id = request.args.get('id')
+    name = request.args.get('name')
+    barcode = request.args.get('barcode')
+
+    query = Product.query
+
+    if product_id:
+        product = query.get(product_id)
+    elif barcode:
+        product = query.filter_by(barcode=barcode).first()
+    elif name:
+        product = query.filter(Product.name.ilike(f"%{name}%")).first()
+    else:
+        return jsonify({"error": "Provide id, name, or barcode"}), 400
+
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
+
     response_data = ProductResponseSchema.model_validate(product).model_dump()
     return jsonify(response_data), 200
 
 
-# UPDATE
+# UPDATE: Atualiza dados de um produto
 @product_bp.route('/product/<int:product_id>', methods=['PATCH'])
 @swag_from({
     'tags': ['Product'],
@@ -148,6 +248,9 @@ def get_product(product_id):
     }
 })
 def update_product(product_id):
+    """
+    Atualiza nome ou barcode de um produto existente.
+    """
     product = Product.query.get_or_404(product_id)
 
     try:
@@ -173,24 +276,65 @@ def update_product(product_id):
         return jsonify({"error": str(e)}), 400
 
 
-# DELETE
-@product_bp.route('/product/<int:product_id>', methods=['DELETE'])
+# DELETE: Remove produto do histórico
+@product_bp.route('/product', methods=['DELETE'])
 @swag_from({
     'tags': ['Product'],
     'summary': 'Remove from history',
-    'description': 'Permanently deletes a product from the local database.',
+    'description': 'Deletes a product from the local database using its ID, name, or barcode.',
+    'parameters': [
+        {
+            'in': 'body',
+            'name': 'body',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'id': {'type': 'integer', 'example': 1},
+                    'name': {'type': 'string', 'example': 'Nutella'},
+                    'barcode': {'type': 'string', 'example': '3017620422003'}
+                }
+            }
+        }
+    ],
     'responses': {
         200: {'description': 'Removed successfully'},
-        404: {'description': 'Not found'}
+        404: {'description': 'Product not found'},
+        400: {'description': 'Invalid request'}
     }
 })
-def delete_product(product_id):
-    product = Product.query.get_or_404(product_id)
-
+def delete_product():
+    """
+    Remove um produto do histórico local.
+    Aceita ID, nome ou barcode para identificar o produto.
+    """
     try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        product_id = data.get('id')
+        name = data.get('name')
+        barcode = data.get('barcode')
+
+        # Busca o produto usando o identificador fornecido
+        if product_id:
+            product = Product.query.get(product_id)
+        elif barcode:
+            product = Product.query.filter_by(barcode=barcode).first()
+        elif name:
+            product = Product.query.filter_by(name=name).first()
+        else:
+            return jsonify({"error": "Provide an ID, name, or barcode"}), 400
+
+        if not product:
+            return jsonify({"error": "Product not found in history"}), 404
+
         db.session.delete(product)
         db.session.commit()
-        return jsonify({"message": f"Product {product_id} removed from history"}), 200
+
+        return jsonify({"message": "Product removed from history"}), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400

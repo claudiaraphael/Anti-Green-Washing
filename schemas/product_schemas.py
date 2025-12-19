@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -6,6 +6,10 @@ from typing import Optional
 
 
 class ProductInputSchema(BaseModel):
+
+    # Enable ORM mode
+    model_config = ConfigDict(from_attributes=True)
+
     name: Optional[str] = Field(
         None,
         description="Product name (optional if barcode is provided).",
@@ -29,6 +33,9 @@ class ProductResponseSchema(ProductInputSchema):
     Schema for the complete Truth Label response.
     Includes processed data and analysis tags.
     """
+
+    class Config:
+        from_attributes = True
 
     id: int = Field(..., json_schema_extra={
                     "description": "Internal database ID."})
