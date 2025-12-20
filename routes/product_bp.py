@@ -338,3 +338,24 @@ def delete_product():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
+# LIST: Lista todos os produtos no histórico
+
+
+@product_bp.route('/products-list', methods=['GET'])
+@swag_from({
+    'tags': ['Product'],
+    'summary': 'List all products in history',
+    'description': 'Retrieves a list of all products stored in the local database history.',
+    'responses': {
+        200: {'description': 'List of products retrieved successfully'}
+    }
+})
+def list_products():
+    """
+    Lista todos os produtos armazenados no histórico local.
+    """
+    products = Product.query.all()
+    response_data = [ProductResponseSchema.model_validate(
+        prod).model_dump() for prod in products]
+    return jsonify(response_data), 200

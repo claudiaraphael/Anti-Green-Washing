@@ -28,8 +28,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///truthlable.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # Swagger Config
-
+    # Swagger Configuration
     swagger_config = {
         "headers": [],
         "specs": [
@@ -81,7 +80,7 @@ def create_app():
     # CORS Configuration: connect front end to back end
     CORS(app, resources={
         r"/*": {
-            "origins": ["http://127.0.0.1:5000"],
+            "origins": ["http://127.0.0.1:5500"],  # Frontend origin
             "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
