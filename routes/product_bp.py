@@ -38,7 +38,7 @@ def buscar_produto_na_off(barcode):
     Returns:
         dict | None: Dados do produto se encontrado, None caso contrário
     """
-    off_url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
+    off_url = f"https://world.openfoodfacts.net/api/v2/product/{barcode}"
 
     try:
         response = requests.get(off_url, timeout=10)
@@ -73,8 +73,9 @@ def criar_e_salvar_produto(barcode, off_data):
 
     # Calcula o score
     final_score = calculate_score(
-        nova_group=nova,
-        ingredients_tags=ing_tags,
+        off_data,
+        nova_group=off_data.get('nova_group'),
+        ingredients_tags=off_data.get('ing_tags'),
         labels_tags=lab_tags,
         additives_tags=",".join(add_tags)
     )
@@ -83,7 +84,8 @@ def criar_e_salvar_produto(barcode, off_data):
     novo_produto = Product(
         name=off_data.get("product_name", "Unknown Product"),
         barcode=barcode,
-        image_url=off_data.get("image_front_url"),
+        image_url=off_data.get(
+            "image_front_url") or off_data.get("image_front_url"),
         nova_group=nova,
         ingredients_analysis_tags=",".join(ing_tags),
         labels_tags=",".join(lab_tags),
@@ -277,67 +279,45 @@ def update_product(product_id):
 
 
 # DELETE: Remove produto do histórico
-@product_bp.route('/product', methods=['DELETE'])
+@product_bp.route('/product/delete', methods=['DELETE'])
 @swag_from({
     'tags': ['Product'],
-    'summary': 'Remove from history',
-    'description': 'Deletes a product from the local database using its ID, name, or barcode.',
+    'summary': 'Remove a product from history',
     'parameters': [
         {
-            'in': 'body',
             'name': 'body',
+            'in': 'body',
+            'required': True,
             'schema': {
                 'type': 'object',
                 'properties': {
-                    'id': {'type': 'integer', 'example': 1},
-                    'name': {'type': 'string', 'example': 'Nutella'},
-                    'barcode': {'type': 'string', 'example': '3017620422003'}
+                    'barcode': {'type': 'string'}
                 }
             }
         }
     ],
     'responses': {
-        200: {'description': 'Removed successfully'},
-        404: {'description': 'Product not found'},
-        400: {'description': 'Invalid request'}
+        200: {'description': 'Product deleted successfully'},
+        404: {'description': 'Product not found'}
     }
 })
 def delete_product():
-    """
-    Remove um produto do histórico local.
-    Aceita ID, nome ou barcode para identificar o produto.
-    """
+    data = request.get_json()
+    barcode = data.get('barcode')
+
+    # Busca o produto no banco
+    product = Product.query.filter_by(barcode=barcode).first()
+
+    if not product:
+        return jsonify({"error": "Produto não encontrado no histórico"}), 404
+
     try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-
-        product_id = data.get('id')
-        name = data.get('name')
-        barcode = data.get('barcode')
-
-        # Busca o produto usando o identificador fornecido
-        if product_id:
-            product = Product.query.get(product_id)
-        elif barcode:
-            product = Product.query.filter_by(barcode=barcode).first()
-        elif name:
-            product = Product.query.filter_by(name=name).first()
-        else:
-            return jsonify({"error": "Provide an ID, name, or barcode"}), 400
-
-        if not product:
-            return jsonify({"error": "Product not found in history"}), 404
-
         db.session.delete(product)
         db.session.commit()
-
-        return jsonify({"message": "Product removed from history"}), 200
-
+        return jsonify({"message": "Produto removido com sucesso"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": f"Erro ao deletar: {str(e)}"}), 500
 
 # LIST: Lista todos os produtos no histórico
 
@@ -352,9 +332,6 @@ def delete_product():
     }
 })
 def list_products():
-    """
-    Lista todos os produtos armazenados no histórico local.
-    """
     products = Product.query.all()
     response_data = [ProductResponseSchema.model_validate(
         prod).model_dump() for prod in products]

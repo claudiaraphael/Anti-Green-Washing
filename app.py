@@ -95,9 +95,9 @@ def create_app():
     from routes.user_bp import user_bp
     from routes.comment_bp import comment_bp
 
-    app.register_blueprint(product_bp, url_prefix='/api')
-    app.register_blueprint(comment_bp, url_prefix='/api')
-    app.register_blueprint(user_bp, url_prefix='/api')
+    app.register_blueprint(product_bp)
+    app.register_blueprint(comment_bp)
+    app.register_blueprint(user_bp)
 
     # Simple test route
     @app.route('/')
