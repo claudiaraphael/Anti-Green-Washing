@@ -38,7 +38,7 @@ def buscar_produto_na_off(barcode):
     Returns:
         dict | None: Dados do produto se encontrado, None caso contrário
     """
-    off_url = f"https://world.openfoodfacts.net/api/v2/product/{barcode}"
+    off_url = f"https://br.openfoodfacts.net/api/v2/product/{barcode}"
 
     try:
         response = requests.get(off_url, timeout=10)
